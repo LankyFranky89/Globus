@@ -2,7 +2,7 @@
 ## Title: Globus
 ## Notes: A clean, borderless world map: just the map and your quest tracking. Zoom in very close with the mouse wheel, drag to move, resize from the corner. /globus
 ## Author: Frank
-## Version: 1.0.0
+## Version: 1.1.0
 ## SavedVariables: GlobusDB
 
 Globus.lua
