@@ -22,6 +22,7 @@ local DEFAULTS = {
   questFilter = "all", questRings = false, modernQuest = false, nearestLine = true, partyNames = true, ping = true,
   waypoint = true, fadeMoving = true, fadeAlpha = 0.35,
   terrain = true, terrainAlpha = 0.85,
+  fishRanges = true, -- fishing skill ranges on the map (only with Forever Fishing)
 }
 NS.DEFAULTS = DEFAULTS
 NS.Print = function(m) print("|cff4fc3f7Globus:|r " .. m) end

@@ -255,7 +255,7 @@ local function ToolButton(parent, icon, title, tip, onClick, hint)
   b.bgTex:SetTexture("Interface\\Minimap\\UI-Minimap-Background"); b.bgTex:SetSize(15, 15)
   b.bgTex:SetPoint("TOPLEFT", 4, -4); b.bgTex:SetVertexColor(0, 0, 0, 0.9)
   b.icon = b:CreateTexture(nil, "ARTWORK")
-  b.icon:SetTexture(MEDIA .. icon); b.icon:SetSize(10, 10); b.icon:SetPoint("CENTER", b.bgTex, "CENTER", 0, 0)
+  b.icon:SetTexture(icon:find("\\", 1, true) and icon or (MEDIA .. icon)); b.icon:SetSize(10, 10); b.icon:SetPoint("CENTER", b.bgTex, "CENTER", 0, 0)
   b.border = b:CreateTexture(nil, "OVERLAY")
   b.border:SetTexture("Interface\\Minimap\\MiniMap-TrackingBorder"); b.border:SetSize(38, 38); b.border:SetPoint("TOPLEFT")
   b:SetHighlightTexture("Interface\\Minimap\\UI-Minimap-ZoomButton-Highlight", "ADD")
@@ -430,6 +430,24 @@ local function MakeUI()
     lock.icon:SetTexture(MEDIA .. (DB.locked and "IconLock" or "IconUnlock"))
   end
   NS.UpdateButtons()
+
+  -- other addons' buttons (e.g. TrekTime's Dungeons / Raids), added left of the lock button
+  local lastTool = lock
+  NS.AddTool = function(t)
+    local b = ToolButton(controls, t.icon, t.title, t.tip, function()
+      t.onClick()
+      Lit(t.button, t.isOn())
+    end, function() return t.isOn() and "Click to hide" or "Click to show" end)
+    t.button = b
+    b:SetPoint("RIGHT", lastTool, "LEFT", -2, 0)
+    b:SetFrameLevel(bar:GetFrameLevel() + 5)
+    b:EnableMouse(NS.hovering == true)
+    lastTool = b
+    Lit(b, t.isOn())
+    return b
+  end
+  for _, t in ipairs(NS.pendingTools or {}) do NS.AddTool(t) end
+  NS.pendingTools = nil
 
   -- zoom bar (#3): + / slider / - / zoom to me, along the right edge.
   -- Dark gold-trimmed panel with minimap-style round buttons, like the toolbar.
@@ -769,6 +787,7 @@ local OPTIONS = {
   { header = "Getting around" },
   { "Coordinates", "coords", "Your coordinates and the cursor's, at the bottom of the map." },
   { "Zone levels", "zoneLevels", "Zone name and level range (red = too high, yellow = right, green = easy)." },
+  { "Fishing ranges (Forever Fishing)", "fishRanges", "Fishing skill range on zone hover and in the corner of zone maps. Red = too low, yellow = fish get away, green = reliable, grey = easy. Needs Forever Fishing." },
   { "Breadcrumbs in the top bar", "crumbs", "Click a name to go up to that map." },
   { "Zoom bar", "zoomBar", "+ / - buttons, zoom slider and a zoom-to-me button on the right edge." },
   { "Zoom bar only on mouse-over", "zoomBarHover", "The zoom bar stays hidden until you move the mouse to the right edge of the map." },
@@ -797,7 +816,7 @@ local function BuildOptions()
   sub:SetText("Clean, zoomable world map. /globus for commands.")
   local col, y = 0, -56
   for i, o in ipairs(OPTIONS) do
-    if i == 17 then col, y = 300, -56 end -- second column
+    if i == 18 then col, y = 300, -56 end -- second column
     local x = 16 + col
     if o.header then
       local h = panel:CreateFontString(nil, "OVERLAY", "GameFontNormal")
@@ -888,6 +907,17 @@ local function BuildOptions()
   end
 end
 
+---------------------------------------------------------------- API for other addons
+-- Globus_AddToolButton{ icon = texture path, title = "Dungeons", tip = "...", onClick = fn, isOn = fn }
+-- adds a round button to the Globus top bar (gold icon = on, grey = off). Returns the button
+-- (or nil if it is queued until the map is set up).
+function Globus_AddToolButton(t)
+  if type(t) ~= "table" or not t.icon or not t.onClick or not t.isOn then return end
+  if NS.AddTool then return NS.AddTool(t) end
+  NS.pendingTools = NS.pendingTools or {}
+  table.insert(NS.pendingTools, t)
+end
+
 ---------------------------------------------------------------- start
 function NS.SetupFeatures(db)
   DB = db
@@ -895,6 +925,7 @@ function NS.SetupFeatures(db)
   HookClicks()
   StartTicker()
   do local ok, err = pcall(BuildOptions); if not ok then geterrorhandler()("Globus options: " .. tostring(err)) end end
+  if NS.SetupFishing then local ok, err = pcall(NS.SetupFishing, DB); if not ok then geterrorhandler()("Globus fishing: " .. tostring(err)) end end
   if not NS.OpenOptions then NS.OpenOptions = function() Print("options page couldn't be created.") end end
   if WorldMapFrame.OnMapChanged then hooksecurefunc(WorldMapFrame, "OnMapChanged", function() BuildCrumbs() end) end
   WorldMapFrame:HookScript("OnShow", function() BuildCrumbs() end)
